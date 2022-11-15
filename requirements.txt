@@ -1,0 +1,15 @@
+torch
+tokenizers
+bert-score
+openai
+tqdm
+datasets
+prompt_toolkit
+promptsource
+spacy==3.3.0
+rouge_score
+nltk
+parallelformers
+accelerate
+more_itertools
+thefuzz
