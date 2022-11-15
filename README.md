@@ -8,7 +8,7 @@
     <a href="https://github.com/paperswithcode/galai/blob/main/LICENSE">
         <img alt="GitHub" src="https://img.shields.io/github/license/paperwithcode/galai.svg?color=purple">
     </a>
-    <a href="https://github.com/paperswithcide/galai/releases">
+    <a href="https://github.com/paperswithcode/galai/releases">
         <img alt="GitHub release" src="https://img.shields.io/github/release/paperswithcode/galai.svg">
     </a>
 </p>
