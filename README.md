@@ -17,10 +17,10 @@
 
 ## Install
 
-**With `pip`**
+From repository:
     
 ```bash
-pip install galai
+pip install git+https://github.com/paperswithcode/galai
 ```
 
 ## Models
