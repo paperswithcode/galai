@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 PACKAGE_NAME = 'galai'
-VERSION = "0.0.1"
+VERSION = "1.0.0"
 DESCRIPTION = "API for the GALILEO model"
 KEYWORDS = "Scientific Intelligence"
 URL = 'https://github.com/paperswithcode/galai'
