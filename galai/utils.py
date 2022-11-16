@@ -69,7 +69,7 @@ class DownloadProgressBar(tqdm.tqdm):
 
 def _download_file(file_url: str, file_loc: str):
     with DownloadProgressBar(unit='B', unit_scale=True,
-                             miniters=1, desc=file_url.split('/')[-1]) as t:
+                             mininterval=1, desc=file_url.split('/')[-1]) as t:
         urllib.request.urlretrieve(file_url, filename=file_loc, reporthook=t.update_to)
 
 def download_model(model_name: str, model_path: str):
