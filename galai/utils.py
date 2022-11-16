@@ -74,7 +74,7 @@ def _download_file(file_url: str, file_loc: str):
 
 def download_model(model_name: str, model_path: str):
 
-    for file_url in tqdm.tqdm(CHECKPOINT_PATHS[model_name]):
+    for file_url in tqdm.tqdm(CHECKPOINT_PATHS[model_name], mininterval=1):
         file_loc = os.path.join(model_path, file_url.split('/')[-1])
         if os.path.exists(file_loc):
             continue
