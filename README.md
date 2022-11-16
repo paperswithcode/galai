@@ -45,6 +45,11 @@ model.generate("Scaled dot product attention:\n\n\\[")
 # Scaled dot product attention:\n\n\\[ \\displaystyle\\text{Attention}(Q,K,V)=\\text{softmax}(\\frac{QK^{T}}{\\sqrt{d_{k}}}%\n)V \\]
 ```
 
+The `load_model()` function accepts the following parameters:
+- `name: str` that accepts `mini`, `base`, `standard`, `large`, and `huge`
+- `dtype: str=None` that accepts `float16` (or when the name is set to `huge`) and `float32`
+- `num_gpus: int=None` that accepts the total number of GPUs to be used (by default this is `8`)
+
 ## Capabilities
 
 We demonstrate some examples using the standard (6.7B) model below.
