@@ -1,6 +1,11 @@
 import os
 import torch
 
+# Use half GPU tensor as default to save on memory
+if torch.cuda.is_available():
+    torch.set_default_tensor_type('torch.cuda.BFloat16Tensor')
+
+
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 from parallelformers import parallelize
 from tokenizers import Tokenizer
