@@ -17,6 +17,12 @@
 
 ## Install
 
+From pip:
+    
+```bash
+pip install galai
+```
+
 From repository:
     
 ```bash
