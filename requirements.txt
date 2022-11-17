@@ -1,7 +1,6 @@
 torch
 tokenizers
 bert-score
-openai
 tqdm
 datasets
 prompt_toolkit
