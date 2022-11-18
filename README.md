@@ -51,6 +51,39 @@ model.generate("Scaled dot product attention:\n\n\\[")
 # Scaled dot product attention:\n\n\\[ \\displaystyle\\text{Attention}(Q,K,V)=\\text{softmax}(\\frac{QK^{T}}{\\sqrt{d_{k}}}%\n)V \\]
 ```
 
+## Hugging Face Integration
+
+You can find all the model weights with their model cards and inference widget in the [Hugging Face Hub](https://huggingface.co/models?other=galactica). All the models can be used out of the box with the `transformers` library.
+
+```bash
+pip install transformers accelerate
+```
+
+You can run inference using the high-level `pipeline` API
+
+```python
+from transformers import pipeline
+
+model = pipeline("text-generation", model="facebook/galactica-6.7b")
+input_text = "The Transformer architecture [START_REF]"
+model(input_text)
+``` 
+
+Or for more control you can use the lower level `OPTForCausalLM` class. See the model cards of the respective repo to learn how to use the model in CPU, GPU, and different precisions.
+
+```python
+from transformers import AutoTokenizer, OPTForCausalLM
+
+tokenizer = AutoTokenizer.from_pretrained("facebook/galactica-6.7b")
+model = OPTForCausalLM.from_pretrained("facebook/galactica-6.7b", device_map="auto")
+
+input_text = "The Transformer architecture [START_REF]"
+input_ids = tokenizer(input_text, return_tensors="pt").input_ids.to("cuda")
+
+outputs = model.generate(input_ids)
+print(tokenizer.decode(outputs[0]))
+```
+
 ## Capabilities
 
 We demonstrate some examples using the standard (6.7B) model below.
