@@ -13,7 +13,7 @@
     </a>
 </p>
 
-**GALACTICA** is a general-purpose scientific language model. It is trained on a large corpus of scientific text and data. It can perform scientific NLP tasks at a high level, as well as tasks such as citation prediction, mathematical reasoning, molecular property prediction and protein annotation. A demo is available at [galactica.org](https://galactica.org).
+**GALACTICA** is a general-purpose scientific language model. It is trained on a large corpus of scientific text and data. It can perform scientific NLP tasks at a high level, as well as tasks such as citation prediction, mathematical reasoning, molecular property prediction and protein annotation. More information is available at [galactica.org](https://galactica.org).
 
 ## Install
 
