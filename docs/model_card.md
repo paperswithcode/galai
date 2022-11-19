@@ -35,7 +35,7 @@ The models are made available under a non-commercial CC BY-NC 4.0 license. More 
 
 ## Training Data
 
-The GALACTICA models are trained on 106 billion tokens of open-access scientific text and data. This includes papers, textbooks, scientific websites, encyclopedias, reference material, knowledge bases, and more. We tokenize different modalities to provide a natural langauge interface for different tasks. See the README.md for more information. See the paper for full information on the training data.
+The GALACTICA models are trained on 106 billion tokens of open-access scientific text and data. This includes papers, textbooks, scientific websites, encyclopedias, reference material, knowledge bases, and more. We tokenize different modalities to provide a natural language interface for different tasks. See the README.md for more information. See the paper for full information on the training data.
 
 ## Performance and Limitations
 
