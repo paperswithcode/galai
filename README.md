@@ -113,13 +113,6 @@ model.generate("A force of 0.6N is applied to an object, which accelerates at 3m
 # What force should be applied to accelerate an object of mass 3kg to 10m/s? <work>\nWe can use Newton's second law: F = ma. We can substitute variables to get:\n\n\\[ F = \\left(66kg
 ```
 
-📄 **Generate Documents**:
-
-```python
-model.generate("Lecture 1: The Ising Model\n\n", new_doc=True, top_p=0.7, max_length=200)
-# 'Lecture 1: The Ising Model\n\n# 13 Introduction\n\nWe will now look at a simple model for magnetism, the Ising model, which is\na lattice model in which we consider only two spin values, up or down, and\nwe want to understand how these spins interact with each other and how\nthey get arranged in a particular state.\n\nWe will first consider the one-dimensional case, and then move on to\nthe case of two-dimensional lattices, and then to higher dimensions.\n\n# 14 The One-Dimensional Ising Model\n\n# 14.1 The Model\n\nThe one-dimensional Ising model is the simplest case of the model, in\nwhich the lattice is a line of \\(N\\) spins, each with two possible spin\nvalues, up or down. In other words, we consider a line of \\(N\\) spins\nwhere each spin can point up or down'
-```
-
 ⚛️ **Generate Molecules**:
 
 ```python
@@ -134,7 +127,7 @@ model.generate("[START_AMINO]GHMQSITAGQKVISKHKNGRFYQCEVVRLTTETFYEVNFDDGSFSDNLYPE
 # '[START_AMINO]GHMQSITAGQKVISKHKNGRFYQCEVVRLTTETFYEVNFDDGSFSDNLYPEDIVSQDCLQFGPPAEGEVVQVRWTDGQVYGAKFVASHPIQMYQVEFEDGSQLVVKRDDVYTLDEELP[END_AMINO] ## Keywords\n\nCytoplasm, Methyltransferase, rRNA processing, S-adenosyl-L-methionine, Transferase\n\n## References\n\nQuestion: What are some articles for Ribosomal RNA small subunit methyltransferase H?\n\nAnswer: \n\n[START_REF] Comparative Genomics of 28 Salmonella enterica Isolates: Evidence for CRISPR-Mediated Adaptive Sublineage Evolution, Fricke[END_REF]\n\n</s>'
 ```
 
-### Free-Form Generation
+🖱️ **Free-Form Generation**
 
 If you want autocomplete based functionality, it is often good to experiment with turning off `new_doc=True`. This makes it more likely for the model to think it is in the middle of a document, as opposed to the beginning.
 
@@ -142,7 +135,7 @@ If you want autocomplete based functionality, it is often good to experiment wit
 model.generate("The reason why Transformers replaced RNNs was because", new_doc=False)
 ```
 
-### Questions
+❓ **Questions**
   
 In the paper we prefix questions with "Q:" or "Question:". A typical format is "Question: question.\n\nAnswer:", for example:
 
@@ -150,7 +143,7 @@ In the paper we prefix questions with "Q:" or "Question:". A typical format is "
 model.generate("Question: What is the notch signaling pathway?\n\nAnswer:")
 ```
 
-### Documents
+📄 **Documents**
   
 When starting a document, you must use the start document token for good results. To do this, set `new_doc=True` in generate:
 
@@ -164,6 +157,13 @@ For paper documents, use Title, e.g:
 
 ```python
 model.generate("Title: Self-Supervised Learning, A Survey\n\n", new_doc=True)
+```
+
+You can also try alternative sampling techniques for less repetitions, e.g.
+
+```python
+model.generate("Lecture 1: The Ising Model\n\n", new_doc=True, top_p=0.7, do_sample=True max_length=200)
+# 'Lecture 1: The Ising Model\n\n# 13 Introduction\n\nWe will now look at a simple model for magnetism, the Ising model, which is\na lattice model in which we consider only two spin values, up or down, and\nwe want to understand how these spins interact with each other and how\nthey get arranged in a particular state.\n\nWe will first consider the one-dimensional case, and then move on to\nthe case of two-dimensional lattices, and then to higher dimensions.\n\n# 14 The One-Dimensional Ising Model\n\n# 14.1 The Model\n\nThe one-dimensional Ising model is the simplest case of the model, in\nwhich the lattice is a line of \\(N\\) spins, each with two possible spin\nvalues, up or down. In other words, we consider a line of \\(N\\) spins\nwhere each spin can point up or down'
 ```
 
 ## Citation
