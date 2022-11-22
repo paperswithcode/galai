@@ -118,7 +118,7 @@ model.generate("A force of 0.6N is applied to an object, which accelerates at 3m
 ⚛️ **Generate Molecules**:
 
 ```python
-model.generate("[START_I_SMILES]", top_p=0.6, max_length=200)
+model.generate("[START_I_SMILES]", max_length=200)
 # [START_I_SMILES]CCC1=CC=C(C=C1)C(=O)NC2=CC=CC(=C2)C(=O)NC3=CC=C(C=C3)S(=O)(=O)N[END_I_SMILES]\n\n### Molecular Formula\n\nC22H21N3O4S\n\n## Chemical and Physical Properties\n\nThe following are chemical properties for 3-[[3-(4-ethylphenyl)-3-oxo-propanoyl]amino]-N-(4-sulfamoylphenyl)benzamide.\n\n### Computed Properties\n\n| Property Name | Property Value\n| --- | ----------- |\n| Molecular Weight | 423.5\n| XLogP3-AA Log P | 3.2\n| Hydrogen Bond Donor Count | 3\n| Hydrogen Bond Acceptor Count 
 ```
 
@@ -164,7 +164,7 @@ model.generate("Title: Self-Supervised Learning, A Survey\n\n", new_doc=True)
 You can also try alternative sampling techniques for less repetitions, e.g.
 
 ```python
-model.generate("Lecture 1: The Ising Model\n\n", new_doc=True, top_p=0.7, do_sample=True max_length=200)
+model.generate("Lecture 1: The Ising Model\n\n", new_doc=True, top_p=0.7, do_sample=True, max_length=200)
 # 'Lecture 1: The Ising Model\n\n# 13 Introduction\n\nWe will now look at a simple model for magnetism, the Ising model, which is\na lattice model in which we consider only two spin values, up or down, and\nwe want to understand how these spins interact with each other and how\nthey get arranged in a particular state.\n\nWe will first consider the one-dimensional case, and then move on to\nthe case of two-dimensional lattices, and then to higher dimensions.\n\n# 14 The One-Dimensional Ising Model\n\n# 14.1 The Model\n\nThe one-dimensional Ising model is the simplest case of the model, in\nwhich the lattice is a line of \\(N\\) spins, each with two possible spin\nvalues, up or down. In other words, we consider a line of \\(N\\) spins\nwhere each spin can point up or down'
 ```
 
