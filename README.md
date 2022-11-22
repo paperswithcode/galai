@@ -86,6 +86,8 @@ print(tokenizer.decode(outputs[0]))
 
 ## Capabilities
 
+GALACTICA is a stand-alone LM which is not instruction tuned. Because of this you need to use the correct prompts to get good results. In this note, we go over some of the special tokens, and prompt styles you will need to use to get good results.
+
 We demonstrate some examples using the standard (6.7B) model below.
 
 📚 **Predict Citations**:
