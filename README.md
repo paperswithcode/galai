@@ -90,6 +90,8 @@ We demonstrate some examples using the standard (6.7B) model below.
 
 📚 **Predict Citations**:
 
+You need to use `[START_REF]`:
+
 ```python
 model.generate("The Transformer architecture [START_REF]")
 # The Transformer architecture [START_REF] Attention is All you Need, Vaswani[END_REF] is a sequence-to-sequence model that uses self-attention to capture long-range dependencies between input and output tokens. The Transformer has been shown to achieve state-of-the-art results on a wide range of natural
@@ -128,6 +130,38 @@ model.generate("[START_I_SMILES]", top_p=0.6, max_length=200)
 ```python
 model.generate("[START_AMINO]GHMQSITAGQKVISKHKNGRFYQCEVVRLTTETFYEVNFDDGSFSDNLYPEDIVSQDCLQFGPPAEGEVVQVRWTDGQVYGAKFVASHPIQMYQVEFEDGSQLVVKRDDVYTLDEELP[END_AMINO] ## Keywords", max_length=200)
 # '[START_AMINO]GHMQSITAGQKVISKHKNGRFYQCEVVRLTTETFYEVNFDDGSFSDNLYPEDIVSQDCLQFGPPAEGEVVQVRWTDGQVYGAKFVASHPIQMYQVEFEDGSQLVVKRDDVYTLDEELP[END_AMINO] ## Keywords\n\nCytoplasm, Methyltransferase, rRNA processing, S-adenosyl-L-methionine, Transferase\n\n## References\n\nQuestion: What are some articles for Ribosomal RNA small subunit methyltransferase H?\n\nAnswer: \n\n[START_REF] Comparative Genomics of 28 Salmonella enterica Isolates: Evidence for CRISPR-Mediated Adaptive Sublineage Evolution, Fricke[END_REF]\n\n</s>'
+```
+
+### Free-Form Generation
+
+If you want autocomplete based functionality, it is often good to experiment with turning off `new_doc=True`. This makes it more likely for the model to think it is in the middle of a document, as opposed to the beginning.
+
+```python
+model.generate("The reason why Transformers replaced RNNs was because", new_doc=False)
+```
+
+### Questions
+  
+In the paper we prefix questions with "Q:" or "Question:". A typical format is "Question: question.\n\nAnswer:", for example:
+
+```python
+model.generate("Question: What is the notch signaling pathway?\n\nAnswer:")
+```
+
+### Documents
+  
+When starting a document, you must use the start document token for good results. To do this, set `new_doc=True` in generate:
+
+For some article types, like Wikipedia style articles and GitHub repositories, use `#` to begin, e.g:
+  
+```python
+model.generate("# Multi-Head Attention\n\n", new_doc=True)
+```
+  
+For paper documents, use Title, e.g:
+
+```python
+model.generate("Title: Self-Supervised Learning, A Survey\n\n", new_doc=True)
 ```
 
 ## Citation
