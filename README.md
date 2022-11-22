@@ -108,6 +108,8 @@ model.generate("The Schwarzschild radius is defined as: \\[")
 
 🤔 **Reasoning**:
 
+Reasoning uses the special `<work>` token:
+
 ```python
 model.generate("A force of 0.6N is applied to an object, which accelerates at 3m/s. What is its mass? <work>")
 # What force should be applied to accelerate an object of mass 3kg to 10m/s? <work>\nWe can use Newton's second law: F = ma. We can substitute variables to get:\n\n\\[ F = \\left(66kg
@@ -135,7 +137,7 @@ If you want autocomplete based functionality, it is often good to experiment wit
 model.generate("The reason why Transformers replaced RNNs was because", new_doc=False)
 ```
 
-❓ **Questions**
+❓ **Question Answering**
   
 In the paper we prefix questions with "Q:" or "Question:". A typical format is "Question: question.\n\nAnswer:", for example:
 
