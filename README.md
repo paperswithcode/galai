@@ -51,9 +51,7 @@ model.generate("Scaled dot product attention:\n\n\\[")
 # Scaled dot product attention:\n\n\\[ \\displaystyle\\text{Attention}(Q,K,V)=\\text{softmax}(\\frac{QK^{T}}{\\sqrt{d_{k}}}%\n)V \\]
 ```
 
-## Hugging Face Integration
-
-You can find all the model weights with their model cards and inference widget in the [Hugging Face Hub](https://huggingface.co/models?other=galactica). All the models can be used out of the box with the `transformers` library.
+You can also find all the model weights with their model cards and inference widget in the [Hugging Face Hub](https://huggingface.co/models?other=galactica). All the models can be used out of the box with the `transformers` library.
 
 ```bash
 pip install transformers accelerate
