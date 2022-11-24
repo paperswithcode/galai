@@ -1,13 +1,11 @@
 import os
 import torch
 
-from accelerate import init_empty_weights, load_checkpoint_and_dispatch
-from parallelformers import parallelize
 from tokenizers import Tokenizer
 
-from galai.architecture import OPTForCausalLM, OPTConfig
 from galai.utils import escape_custom_split_sequence
 
+from transformers import  OPTForCausalLM 
 
 class Model(object):
     """
@@ -16,7 +14,7 @@ class Model(object):
     using the standard HuggingFace API.
     """
 
-    def __init__(self, name: str, dtype: str, num_gpus: int):
+    def __init__(self, name: str, dtype: str):
         """
         Initializes a new model
 
@@ -26,9 +24,11 @@ class Model(object):
             Model name, e.g. `standard`.
         """
         self.name = name
-        self.num_gpus = num_gpus
         self.dtype = dtype
         self.is_loaded = False
+
+
+
 
     def _load_checkpoint(self, checkpoint_path: str):
         """
@@ -39,38 +39,10 @@ class Model(object):
         checkpoint_path : str
             Path for the checkpoint (str)
         """
-        self.config = OPTConfig.from_pretrained(checkpoint_path)
-        
-        with init_empty_weights():
-            self.model = OPTForCausalLM(self.config)
-        
-        self.model.tie_weights()
-
-        device_map = {
-            'decoder.embed_tokens': 0, 
-            'decoder.embed_positions': 0, 
-            'decoder.layer_norm': 0,
-        }
-        
-        n_layers = self.config.num_hidden_layers
-        
-        for i in range(n_layers):
-            device_map[f"decoder.layers.{i}"] = i * self.num_gpus // n_layers
-
-        if 'mini' in checkpoint_path or 'base' in checkpoint_path:
-            checkpoint_path = checkpoint_path + '/pytorch_model.bin'
-
-        load_checkpoint_and_dispatch(
-            self.model.model, 
-            checkpoint_path, 
-            device_map=device_map, 
-            offload_folder=None, 
-            dtype=self.dtype, 
-            offload_state_dict=True
-        )
-
-        self.model.tie_weights()
-        self.model.eval()
+        if torch.cuda.is_available():
+            self.model = OPTForCausalLM.from_pretrained(checkpoint_path, device_map="auto",  torch_dtype=self.dtype)
+        else:
+            self.model = OPTForCausalLM.from_pretrained(checkpoint_path, torch_dtype=self.dtype)
 
     def _set_tokenizer(self, tokenizer_path: str):
         """
@@ -81,7 +53,7 @@ class Model(object):
         tokenizer_path : str
             Path for the tokenizer (str)
         """
-        self.tokenizer = Tokenizer.from_file(tokenizer_path)
+        self.tokenizer = Tokenizer.from_pretrained(tokenizer_path)
         self.tokenizer.enable_padding(direction="left", pad_id=1, pad_type_id=0, pad_token="[PAD]")
         self.tokenizer.enable_truncation(max_length=2020, direction="left")
 
