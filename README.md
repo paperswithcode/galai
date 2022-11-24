@@ -135,6 +135,7 @@ If you want autocomplete based functionality, it is often good to experiment wit
 
 ```python
 model.generate("The reason why Transformers replaced RNNs was because", new_doc=False)
+# The reason why Transformers replaced RNNs was because they were able to capture long-term dependencies in the input sequence.\n\n# 2.2.2. Attention Mechanism\n\nThe attention mechanism was introduced in [START_REF] Neural Machine Translation by Jointly Learning to Align and Translate, Bahdan
 ```
 
 ❓ **Question Answering**
@@ -143,22 +144,25 @@ In the paper we prefix questions with "Q:" or "Question:". A typical format is "
 
 ```python
 model.generate("Question: What is the notch signaling pathway?\n\nAnswer:")
+# 'Question: What is the notch signaling pathway?\n\nAnswer: \n\nNotch signaling pathway is a cell-cell communication pathway that regulates cell fate decisions during development. It is involved in cell proliferation, differentiation, apoptosis, and cell migration. The Notch signaling pathway is activated by the binding of'
 ```
 
 📄 **Documents**
   
 When starting a document, you must use the start document token for good results. To do this, set `new_doc=True` in generate:
 
-For some article types, like Wikipedia style articles and GitHub repositories, use `#` to begin, e.g:
+For some article types, like Wikipedia style articles, lecture notes and GitHub repositories, use `#` to begin, e.g:
   
 ```python
 model.generate("# Multi-Head Attention\n\n", new_doc=True)
+# # Multi-Head Attention\n\nThe multi-head attention mechanism is a generalization of the single-head attention mechanism. The multi-head attention mechanism is a combination of multiple single-head attention mechanisms. The multi-head attention mechanism is shown in Figure 2.\n\nThe multi-
 ```
   
 For paper documents, use Title, e.g:
 
 ```python
-model.generate("Title: Self-Supervised Learning, A Survey\n\n", new_doc=True)
+model.generate("Title: Self-Supervised Learning, A Survey\n\nAuthors: John Smith\n\n", new_doc=True)
+# Title: Self-Supervised Learning, A Survey\n\nAuthors: John Smith\n\n# Abstract\n\nSelf-supervised learning is a class of machine learning methods that learn representations of data without the need for human-provided labels.\nIn this survey, we provide a comprehensive overview of the field
 ```
 
 You can also try alternative sampling techniques for less repetitions, e.g.
@@ -166,6 +170,39 @@ You can also try alternative sampling techniques for less repetitions, e.g.
 ```python
 model.generate("Lecture 1: The Ising Model\n\n", new_doc=True, top_p=0.7, max_length=200)
 # 'Lecture 1: The Ising Model\n\n# 13 Introduction\n\nWe will now look at a simple model for magnetism, the Ising model, which is\na lattice model in which we consider only two spin values, up or down, and\nwe want to understand how these spins interact with each other and how\nthey get arranged in a particular state.\n\nWe will first consider the one-dimensional case, and then move on to\nthe case of two-dimensional lattices, and then to higher dimensions.\n\n# 14 The One-Dimensional Ising Model\n\n# 14.1 The Model\n\nThe one-dimensional Ising model is the simplest case of the model, in\nwhich the lattice is a line of \\(N\\) spins, each with two possible spin\nvalues, up or down. In other words, we consider a line of \\(N\\) spins\nwhere each spin can point up or down'
+```
+
+📜 **Summarization**
+
+You can add "TLDR:" for TLDR summaries:
+
+```python
+TEXT = """Information overload is a major obstacle to scientific progress. The explosive growth in scientific literature and data has made it ever harder to discover useful insights in a large mass of information. Today scientific knowledge is accessed through search engines, but they are unable to organize scientific knowledge alone. In this paper we introduce Galactica: a large language model that can store, combine and reason about scientific knowledge. We train on a large scientific corpus of papers, reference material, knowledge bases and many other sources. We outperform existing models on a range of scientific tasks. On technical knowledge probes such as LaTeX equations, Galactica outperforms the latest GPT-3 by 68.2% versus 49.0%. Galactica also performs well on reasoning, outperforming Chinchilla on mathematical MMLU by 41.3% to 35.7%, and PaLM 540B on MATH with a score of 20.4% versus 8.8%. It also sets a new state-of-the-art on downstream tasks such as PubMedQA and MedMCQA dev of 77.6% and 52.9%. And despite not being trained on a general corpus, Galactica outperforms BLOOM and OPT-175B on BIG-bench. We believe these results demonstrate the potential for language models as a new interface for science. We open source the model for the benefit of the scientific community."""
+
+model.generate(TEXT + "\n\nTLDR:", max_length=400)
+# ...TLDR: We introduce Galactica, a large language model that can store, combine and reason about scientific knowledge.</s>
+```
+
+💎 **Entity extraction**
+
+You can extract entities from documents. We use the abstract example (`TEXT`) from the previous section, and add questions
+
+```python
+ENT_TEXT = TEXT + '\n\nWhat scientific entities are mentioned in the abstract above?\n\n'
+
+model.generate(ENT_TEXT, max_length=400)
+# ...What scientific entities are mentioned in the abstract above?\n\nA: LaTeX equations, mathematical MMLU, MATH, PubMedQA, MedMCQA, BIG-bench</s>
+```
+
+👨‍🔬 **IUPAC Name prediction**
+
+For this task, we used a prompt based off the PubChem document and prompted for the completion. We use the 6.7bn model for below:
+
+```python
+context = "[START_I_SMILES]C(C(=O)O)N[END_I_SMILES]\n\n## Chemical and Physical Properties\n\nThe following are chemical properties for"
+model.generate(context, max_length=400)
+# [START_I_SMILES]C(C(=O)O)N[END_I_SMILES]\n\n## Chemical and Physical Properties\n\nThe following are chemical properties for 2-amino-2-oxo-acetic acid
+# Note this is an incorrect prediction
 ```
 
 ## Citation
