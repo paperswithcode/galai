@@ -1,11 +1,45 @@
-import os
+import warnings
+from typing import Union, List
+
 import torch
 
 from tokenizers import Tokenizer
+from transformers import OPTForCausalLM, StoppingCriteriaList, StoppingCriteria
 
 from galai.utils import escape_custom_split_sequence
+from galai.policy import OPTDecoderLayerPolicyNoBias
 
-from transformers import  OPTForCausalLM 
+
+__all__ = ["Model"]
+
+
+class FinishedReferenceCriteria(StoppingCriteria):
+    """
+    A custom criteria to stop generation as soon as all the sequences in the batch have at least
+    one [END_REF] marker after the prompt.
+    """
+    def __init__(self, prompt_length: int, end_ref_id: int):
+        """
+        Create a new criteria instance for a given generation run.
+
+        Parameters
+        ----------
+        prompt_length : int
+            The length of the prompt in tokens used to distinguish [END_REF] tokens in the prompt
+            from the generated [END_REF] tokens. For a batch of multiple prompts of different
+            lengths this should be the length of the longest prompt and other prompts should be
+            padded.
+        end_ref_id : int
+            The [END_REF] token id.
+        """
+        self.prompt_length = prompt_length
+        self.end_ref_id = end_ref_id
+
+    def __call__(self, input_ids: torch.LongTensor, score: torch.FloatTensor, **kwargs) -> bool:
+        is_end_ref = (input_ids[:, self.prompt_length:] == self.end_ref_id)
+        has_end_ref = is_end_ref.any(dim=-1)
+        return has_end_ref.all()
+
 
 class Model(object):
     """
@@ -14,7 +48,7 @@ class Model(object):
     using the standard HuggingFace API.
     """
 
-    def __init__(self, name: str, dtype: str):
+    def __init__(self, name: str, dtype: str, tensor_parallel: bool = True):
         """
         Initializes a new model
 
@@ -22,10 +56,14 @@ class Model(object):
         ----------
         name : str
             Model name, e.g. `standard`.
+
+        dtype: str
+            Model weights type.
         """
         self.name = name
         self.dtype = dtype
         self.is_loaded = False
+        self.tensor_parallel = tensor_parallel
 
     def _load_checkpoint(self, checkpoint_path: str):
         """
@@ -37,9 +75,32 @@ class Model(object):
             Path for the checkpoint (str)
         """
         if torch.cuda.is_available():
-            self.model = OPTForCausalLM.from_pretrained(checkpoint_path, device_map="auto",  torch_dtype=self.dtype)
+            if self.tensor_parallel:
+                self.model = OPTForCausalLM.from_pretrained(checkpoint_path, torch_dtype=self.dtype)
+                self.num_gpus = torch.cuda.device_count()
+                self._parallelize()
+            else:
+                self.model = OPTForCausalLM.from_pretrained(checkpoint_path, device_map="auto",  torch_dtype=self.dtype)
         else:
             self.model = OPTForCausalLM.from_pretrained(checkpoint_path, torch_dtype=self.dtype)
+
+    def _parallelize(self) -> None:
+        """
+        Parallelize the model for a tensor-parallel multi-GPU inference.
+        """
+        from parallelformers import parallelize
+
+        if self.num_gpus < 2:
+            warnings.warn("At least two GPUs are required to parallelize the model.", UserWarning)
+            return
+
+        master_port = 13000 + (id(self.model) % 32749)
+
+        parallelize(
+            self.model, num_gpus=self.num_gpus, fp16=self.dtype == "float16",
+            custom_policies=[OPTDecoderLayerPolicyNoBias],
+            master_port=master_port,
+        )
 
     def _set_tokenizer(self, tokenizer_path: str):
         """
@@ -54,35 +115,19 @@ class Model(object):
         self.tokenizer.enable_padding(direction="left", pad_id=1, pad_type_id=0, pad_token="[PAD]")
         self.tokenizer.enable_truncation(max_length=2020, direction="left")
 
-    def generate(self, input_text: str, max_length=60, new_doc=False, top_p=None) -> str:
+    def _tokenize(self, input_text: List[str], new_doc: bool) -> torch.LongTensor:
         """
-        Generates text using the model
-
-        Parameters
-        ----------
-        input_text : str
-            Input context for the model to use for its generation, 
-            e.g. "Attention Is All You Need [START_REF]"
-
-        max_length: int
-            Maximum length of the generated text
-
-        new_doc : bool
-            If True, treats generation a new document, otherwise assumes generation could be
-            anywhere within document. Use new_doc=True if you are generating documents, e.g.
-            # Schwarzschild Radius, # Transformer (machine learning), 
-            Title: Transformers, A Survey. For general prompting, turn off. Default is False.
-
-        top_p : float or None
-            If None, uses greedy decoding. If a number, e.g. 0.7, performs top p sampling.
-            Default is None.
+        Apply custom preprocessing to input texts and tokenize them.
 
         Returns
-        ----------
-        str - generated text from the model
+        -------
+            input_text : list[str]
+                Texts to be tokenized
+            new_doc : bool
+                If True, prepends the end-of-document (</s>) token to each sequence and fixes
+                padding.
         """
-        texts = [escape_custom_split_sequence(input_text)]
-
+        texts = [escape_custom_split_sequence(text) for text in input_text]
         if new_doc:
             pad_id = self.tokenizer.padding["pad_id"]
             pad_token = self.tokenizer.id_to_token(pad_id)
@@ -92,23 +137,190 @@ class Model(object):
         context_tokens = [encoded.ids for encoded in list_encoded]
         input_v = torch.LongTensor(context_tokens).to(self.model.device)
 
+        if new_doc:
+            eos_id = self.tokenizer.token_to_id("</s>")
+            input_v[input_v[:, 0] == pad_id, 0] = eos_id
+        return input_v
+
+    @torch.inference_mode()
+    def generate(
+        self,
+        input_text: Union[str, List[str]],
+        max_length=None,
+        max_new_tokens=60,
+        new_doc=False,
+        top_p=None,
+        top_k=None,
+        penalty_alpha=None,
+    ) -> Union[str, List[str]]:
+        """
+        Generates text using the model
+
+        Parameters
+        ----------
+        input_text : str or list[str]
+            Input context for the model to use for its generation,
+            e.g. "Attention Is All You Need [START_REF]"
+
+        max_length : int
+            Maximum length in tokens of the generated text (including prompt). Only one of
+            max_length and max_new_tokens should be specified.
+
+        max_new_tokens : int
+            Maximum length in tokens of the generated text (excluding prompt). Only one of
+            max_length and max_new_tokens should be specified.
+
+        new_doc : bool
+            If True, treats generation a new document, otherwise assumes generation could be
+            anywhere within document. Use new_doc=True if you are generating documents, e.g.
+            # Schwarzschild Radius, # Transformer (machine learning), 
+            Title: Transformers, A Survey. For general prompting, turn off. Default is False.
+
+        top_p : float or None
+            If a number, e.g. 0.7, performs top p sampling. Default is None.
+
+        top_k : int or None
+            If a number, performs top k sampling (if penalty_alpha is None) or contrastive search
+            decoding (if penalty_alpha > 0). Default is None.
+
+        penalty_alpha : float or None
+            If a positive number and top_k is set, performs contrastive search decoding with top_k
+            candidates reranking. Default is None.
+
+        Returns
+        ----------
+        str or list[str] - generated texts from the model. Returns a single str if input_text is
+            str. Otherwise, returns a list.
+        """
+        input_v = self._tokenize([input_text] if isinstance(input_text, str) else input_text, new_doc)
+        options = {}
+        if penalty_alpha is not None:
+            options["penalty_alpha"] = penalty_alpha
+            options["top_k"] = top_k
+        else:
+            if top_p is not None:
+                options["do_sample"] = True
+                options["top_p"] = top_p
+            if top_k is not None:
+                options["do_sample"] = True
+                options["top_k"] = top_k
+
+        out = self.model.generate(
+            input_v,
+            max_length=max_length,
+            max_new_tokens=max_new_tokens,
+            return_dict_in_generate=True,
+            output_hidden_states=False,
+            **options
+        )
+
+        # we keep special tokens such as [START_REF] or <work>
+        decoded = self.tokenizer.decode_batch(out['sequences'].tolist(), skip_special_tokens=False)
+        # so we manually remove </s> and <pad>
+        decoded = [text.replace("</s>", "").replace("<pad>", "") for text in decoded]
+        return decoded[0] if isinstance(input_text, str) else decoded
+
+    @torch.inference_mode()
+    def generate_reference(
+        self,
+        input_text: Union[str, List[str]],
+        max_length=None,
+        max_new_tokens=60,
+        new_doc=False,
+        top_p=None
+    ) -> Union[str, List[str]]:
+        """
+        Generates reference.
+
+        Parameters
+        ----------
+        input_text : str or list[str]
+            Input context for the model to use for its generation,
+            e.g. "Attention Is All You Need [START_REF]"
+
+        max_length : int
+            Maximum length in tokens of the generated text (including prompt). Only one of
+            max_length and max_new_tokens should be specified.
+
+        max_new_tokens : int
+            Maximum length in tokens of the generated text (excluding prompt). Only one of
+            max_length and max_new_tokens should be specified.
+
+        new_doc : bool
+            If True, treats generation a new document, otherwise assumes generation could be
+            anywhere within document. Use new_doc=True if you are generating documents, e.g.
+            # Schwarzschild Radius, # Transformer (machine learning),
+            Title: Transformers, A Survey. For general prompting, turn off. Default is False.
+
+        top_p : float or None
+            If None, uses greedy decoding. If a number, e.g. 0.7, performs top p sampling.
+            Default is None.
+
+        Returns
+        ----------
+        str or list[str] - generated texts from the model. Returns a single str if input_text is
+            str. Otherwise, returns a list.
+        """
+        texts = [input_text] if isinstance(input_text, str) else input_text
+        # append [START_REF] token if missing
+        fixed_texts = []
+        for text in texts:
+            start_ref_pos = text.rfind("[START_REF]")
+            if start_ref_pos == -1:
+                fixed_texts.append(text + "[START_REF]")
+            else:
+                end_ref_pos = text.find("[END_REF]", start_ref_pos)
+                if end_ref_pos != -1:
+                    # the last [START_REF] is closed with [END_REF], let's add another one
+                    fixed_texts.append(text + "[START_REF]")
+                else:
+                    # avoid spaces after [START_REF] token for better results
+                    fixed_texts.append(text.rstrip())
+
+        input_v = self._tokenize(fixed_texts, new_doc)
+
+        prompt_length = input_v.shape[1]
+        finished_reference_criteria = FinishedReferenceCriteria(
+            prompt_length=prompt_length,
+            end_ref_id=self.tokenizer.token_to_id("[END_REF]"),
+        )
+        stopping_criteria = StoppingCriteriaList([finished_reference_criteria])
+
         if top_p is not None:
             out = self.model.generate(
-                input_v, 
-                max_length=max_length, 
-                return_dict_in_generate=True, 
-                output_hidden_states=True,
+                input_v,
+                max_length=max_length,
+                max_new_tokens=max_new_tokens,
+                return_dict_in_generate=True,
+                output_hidden_states=False,
                 top_p=top_p,
-                do_sample=True
+                do_sample=True,
+                stopping_criteria=stopping_criteria,
             )
         else:
             out = self.model.generate(
-                input_v, 
-                max_length=max_length, 
-                return_dict_in_generate=True, 
-                output_hidden_states=True
+                input_v,
+                max_length=max_length,
+                max_new_tokens=max_new_tokens,
+                return_dict_in_generate=True,
+                output_hidden_states=False,
+                stopping_criteria=stopping_criteria,
             )
-                
-        return self.tokenizer.decode_batch(
-            out['sequences'].tolist(), 
-            skip_special_tokens=False)[0].lstrip('<pad>')
+        # cut-off the prompts
+        generated_tokens = out["sequences"][:, prompt_length:].tolist()
+        decoded = self.tokenizer.decode_batch(generated_tokens, skip_special_tokens=False)
+        references = []
+        unfinished_generation = False
+        for text in decoded:
+            end_ref_pos = text.find("[END_REF]")
+            if end_ref_pos == -1:
+                unfinished_generation = True
+                references.append(text.strip())
+            else:
+                references.append(text[:end_ref_pos].strip())
+        if unfinished_generation:
+            warnings.warn(
+                "At least one of the generated references may be incomplete. Consider increasing max_length or max_new_tokens.",
+                UserWarning
+            )
+        return references[0] if isinstance(input_text, str) else references

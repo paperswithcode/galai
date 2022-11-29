@@ -9,6 +9,7 @@ HF_MAPPING = {
     "huge": ("facebook/galactica-120b", torch.float16)
 }
 
+
 def load_model(name: str, dtype: str=None):
     """
     Utility function for loading the model

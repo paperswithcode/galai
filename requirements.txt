@@ -1,14 +1,5 @@
-torch
+torch>=1.12
+transformers>=4.24
 tokenizers
-bert-score
-tqdm
-datasets
-prompt_toolkit
-promptsource
-spacy==3.3.0
-rouge_score
-nltk
-parallelformers
+parallelformers==1.2.7
 accelerate
-more_itertools
-thefuzz
