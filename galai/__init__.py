@@ -1,8 +1,15 @@
 from galai.model import Model
-from galai.utils import get_checkpoint_path, get_tokenizer_path
+import torch
 
+HF_MAPPING = {
+    "mini": ("facebook/galactica-125m", torch.float32),
+    "base": ("facebook/galactica-1.3b", torch.float32),
+    "standard": ("facebook/galactica-6.7b", torch.float32),
+    "large": ("facebook/galactica-30b", torch.float32),
+    "huge": ("facebook/galactica-120b", torch.float16)
+}
 
-def load_model(name: str, dtype: str=None, num_gpus: int=None):
+def load_model(name: str, dtype: str=None):
     """
     Utility function for loading the model
 
@@ -12,32 +19,20 @@ def load_model(name: str, dtype: str=None, num_gpus: int=None):
         Name of the model
 
     dtype: str
-        Optional dtype; default float32 for smaller models
-
-    num_gpus: int
-        Number of GPUs to use, default 8 GPUs
+        Optional dtype; default float32 for all models but 'huge'
 
     Returns
     ----------
     Model - model object
     """
-    if name not in ['mini', 'base', 'standard', 'large', 'huge']:
+
+    if name not in HF_MAPPING:
         raise ValueError("Invalid model name. Must be one of 'mini', 'base', 'standard', 'large', 'huge'.")
 
-    if dtype is None:
-        if name == 'huge':
-            dtype = 'float16'
-        else:
-            dtype = 'float32'
+    hf_model, default_dtype = HF_MAPPING[name]
 
-    if num_gpus is None:
-        num_gpus = 8
-
-    model = Model(name=name, dtype=dtype, num_gpus=num_gpus)
-    model._set_tokenizer(tokenizer_path=get_tokenizer_path())
-    if name in ['mini', 'base']:
-        model._load_checkpoint(checkpoint_path=get_checkpoint_path(name))
-    else:
-        model._load_checkpoint(checkpoint_path=get_checkpoint_path(name))
+    model = Model(name=name, dtype=default_dtype if dtype is None else dtype)
+    model._set_tokenizer(hf_model)
+    model._load_checkpoint(checkpoint_path=hf_model)
 
     return model
