@@ -49,5 +49,4 @@ def escape_custom_split_sequence(text):
     ----------
     str - the text with the split token added
     """
-    print(text)
     return CUSTOM_SEQ_RE.sub(_insert_split_marker, text)

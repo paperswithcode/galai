@@ -27,9 +27,6 @@ class Model(object):
         self.dtype = dtype
         self.is_loaded = False
 
-
-
-
     def _load_checkpoint(self, checkpoint_path: str):
         """
         Loads the checkpoint for the model

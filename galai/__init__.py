@@ -9,7 +9,7 @@ HF_MAPPING = {
     "huge": ("facebook/galactica-120b", torch.float16)
 }
 
-def load_model(name: str):
+def load_model(name: str, dtype: str=None):
     """
     Utility function for loading the model
 
@@ -19,10 +19,7 @@ def load_model(name: str):
         Name of the model
 
     dtype: str
-        Optional dtype; default float32 for smaller models
-
-    num_gpus: int
-        Number of GPUs to use, default 8 GPUs
+        Optional dtype; default float32 for all models but 'huge'
 
     Returns
     ----------
@@ -32,11 +29,9 @@ def load_model(name: str):
     if name not in HF_MAPPING:
         raise ValueError("Invalid model name. Must be one of 'mini', 'base', 'standard', 'large', 'huge'.")
 
-    # TODO: consider the dtypes
-    
-    hf_model, dtype = HF_MAPPING[name]
+    hf_model, default_dtype = HF_MAPPING[name]
 
-    model = Model(name=name, dtype=dtype)
+    model = Model(name=name, dtype=default_dtype if dtype is None else dtype)
     model._set_tokenizer(hf_model)
     model._load_checkpoint(checkpoint_path=hf_model)
 
