@@ -76,13 +76,16 @@ class ModelInfo:
 
     @property
     def parameters(self) -> int:
+        layer_norm_elementwise_affine = True
+        enable_bias = True
         h_dim = self.hidden_dimension
+        bias = h_dim if enable_bias else 0
         embed_tokens_size = self.vocab_size * h_dim
         embed_positions_size = (self.max_positions + 2) * h_dim
-        layer_norm_size = 2 * h_dim
-        self_attn_size = 4 * h_dim * h_dim  # 4 = k_proj+v_proj+q_proj+out_proj
+        layer_norm_size = 2 * h_dim if layer_norm_elementwise_affine else 0
+        self_attn_size = 4 * (h_dim * h_dim + bias)  # 4 = k_proj+v_proj+q_proj+out_proj
         ffn_dim = 4 * h_dim
-        fc_size = 2 * h_dim * ffn_dim  # 2 = fc1 + fc2
+        fc_size = 2 * h_dim * ffn_dim + 5 * bias  # 2 = fc1 + fc2
         decoder_layer_size = self_attn_size + fc_size + 2 * layer_norm_size
         decoder_size = self.num_layers * decoder_layer_size + layer_norm_size + embed_tokens_size + embed_positions_size
 
