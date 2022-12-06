@@ -7,7 +7,6 @@ from tokenizers import Tokenizer
 from transformers import OPTForCausalLM, StoppingCriteriaList, StoppingCriteria
 
 from galai.utils import escape_custom_split_sequence
-from galai.policy import OPTDecoderLayerPolicyNoBias
 
 
 __all__ = ["Model"]
@@ -98,7 +97,6 @@ class Model(object):
 
         parallelize(
             self.model, num_gpus=self.num_gpus, fp16=self.dtype == "float16",
-            custom_policies=[OPTDecoderLayerPolicyNoBias],
             master_port=master_port,
         )
 
