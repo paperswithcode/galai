@@ -79,7 +79,7 @@ class ModelInfo:
         h_dim = self.hidden_dimension
         embed_tokens_size = self.vocab_size * h_dim
         embed_positions_size = (self.max_positions + 2) * h_dim
-        layer_norm_size = 0
+        layer_norm_size = 2 * h_dim
         self_attn_size = 4 * h_dim * h_dim  # 4 = k_proj+v_proj+q_proj+out_proj
         ffn_dim = 4 * h_dim
         fc_size = 2 * h_dim * ffn_dim  # 2 = fc1 + fc2
