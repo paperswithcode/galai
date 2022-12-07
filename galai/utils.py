@@ -1,5 +1,7 @@
 import re
 from typing import List
+import math
+import html
 
 from dataclasses import dataclass
 
@@ -115,11 +117,45 @@ class ModelInfo:
         return _MODEL_INFO
 
 
-_MODEL_INFO = [
+def _humanize(parameters):
+    scale = min(int(math.log10(parameters)) // 3, 4)
+    suffix = " KMBT"[scale]
+
+    return f"{parameters / math.pow(10, 3 * scale):.1f} {suffix}".rstrip()
+
+
+class ModelInfoList(list):
+    def _repr_html_(self):
+        if not self:
+            return ""
+        columns = {
+            "Name": lambda m: f"<strong>{html.escape(m.name)}</strong>",
+            "Parameters": lambda m: _humanize(m.parameters),
+            "Layers": lambda m: str(m.num_layers),
+            "Heads": lambda m: str(m.num_heads),
+            "Head Size": lambda m: str(m.head_size),
+            "Vocabulary Size": lambda m: str(m.vocab_size),
+            "Context Size": lambda m: str(m.max_positions),
+        }
+        output = ["<table><thead><tr>"]
+        for col in columns:
+            output.append(f"<th>{col}</th>")
+        output.append("</tr></thead><tbody>")
+        for mi in self:
+            output.append("<tr>")
+            for extractor in columns.values():
+                output.append(f"<td>{extractor(mi)}</td>")
+            output.append("</tr>")
+        output.append("</tbody></table>")
+        return "".join(output)
+
+
+_MODEL_INFO = ModelInfoList([
     ModelInfo("mini",      num_layers=12, num_heads=12, head_size=64),
     ModelInfo("base",      num_layers=24, num_heads=32, head_size=64),
     ModelInfo("standard",  num_layers=32, num_heads=32, head_size=128),
     ModelInfo("large",     num_layers=48, num_heads=56, head_size=128),
     ModelInfo("huge",      num_layers=96, num_heads=80, head_size=128),
-]
+])
+
 _MODEL_INFO_BY_NAME = {model.name: model for model in _MODEL_INFO}

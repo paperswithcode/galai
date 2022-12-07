@@ -5,6 +5,8 @@ import torch
 
 from tokenizers import Tokenizer
 from transformers import OPTForCausalLM, StoppingCriteriaList, StoppingCriteria
+from parallelformers import parallelize
+import psutil
 
 from galai.utils import escape_custom_split_sequence
 
@@ -47,7 +49,13 @@ class Model(object):
     using the standard HuggingFace API.
     """
 
-    def __init__(self, name: str, dtype: str, tensor_parallel: bool = True):
+    def __init__(
+        self,
+        name: str,
+        dtype: str,
+        num_gpus: int,
+        tensor_parallel: bool = False,
+    ):
         """
         Initializes a new model
 
@@ -56,13 +64,23 @@ class Model(object):
         name : str
             Model name, e.g. `standard`.
 
-        dtype: str
+        dtype: torch.dtype
             Model weights type.
+
+        num_gpus : int
+            Number of GPUs to use for the inference. If 0 only a CPU is used. If a positive number
+            n, then the first n CUDA devices are used.
+
+        tensor_parallel : bool
+            Specify if to use model tensor parallelizm. Ignored in CPU or single GPU inference.
         """
+
         self.name = name
         self.dtype = dtype
         self.is_loaded = False
+        self.num_gpus = num_gpus
         self.tensor_parallel = tensor_parallel
+        self._master_port = None
 
     def _load_checkpoint(self, checkpoint_path: str):
         """
@@ -73,31 +91,47 @@ class Model(object):
         checkpoint_path : str
             Path for the checkpoint (str)
         """
-        if torch.cuda.is_available():
-            if self.tensor_parallel:
-                self.model = OPTForCausalLM.from_pretrained(checkpoint_path, torch_dtype=self.dtype)
-                self.num_gpus = torch.cuda.device_count()
-                self._parallelize()
-            else:
-                self.model = OPTForCausalLM.from_pretrained(checkpoint_path, device_map="auto",  torch_dtype=self.dtype)
-        else:
-            self.model = OPTForCausalLM.from_pretrained(checkpoint_path, torch_dtype=self.dtype)
+
+        # query available memory size of the GPUs we want to use. If tensor_parallel is True,
+        # we just load the model's weights to RAM, as it needs to be sliced by parallelformers
+        # before loading to VRAM.
+        device_map = None
+        max_memory = {}
+        if self.num_gpus > 0 and not self.tensor_parallel:
+            # based on https://github.com/huggingface/accelerate/blob/5315290b55ea9babd95a281a27c51d87b89d7c85/src/accelerate/utils/modeling.py#L274
+            for i in range(self.num_gpus):
+                _ = torch.tensor([0], device=i)
+            for i in range(self.num_gpus):
+                max_memory[i] = torch.cuda.mem_get_info(i)[0]
+            device_map = "auto"
+        max_memory["cpu"] = psutil.virtual_memory().available
+
+        self.model = OPTForCausalLM.from_pretrained(
+            checkpoint_path,
+            torch_dtype=self.dtype,
+            low_cpu_mem_usage=True,
+            device_map=device_map,
+            max_memory=max_memory,
+        )
+        self.model.eval()
+
+        if self.tensor_parallel:
+            self._parallelize()
 
     def _parallelize(self) -> None:
         """
         Parallelize the model for a tensor-parallel multi-GPU inference.
         """
-        from parallelformers import parallelize
 
         if self.num_gpus < 2:
             warnings.warn("At least two GPUs are required to parallelize the model.", UserWarning)
             return
 
-        master_port = 13000 + (id(self.model) % 32749)
+        self._master_port = 13000 + (id(self.model) % 32749)
 
         parallelize(
-            self.model, num_gpus=self.num_gpus, fp16=self.dtype == "float16",
-            master_port=master_port,
+            self.model, num_gpus=self.num_gpus, fp16=self.dtype == torch.float16,
+            master_port=self._master_port,
         )
 
     def _set_tokenizer(self, tokenizer_path: str):
@@ -125,7 +159,17 @@ class Model(object):
                 If True, prepends the end-of-document (</s>) token to each sequence and fixes
                 padding.
         """
-        texts = [escape_custom_split_sequence(text) for text in input_text]
+        texts = []
+        for text in input_text:
+            text = escape_custom_split_sequence(text)
+            if not text:
+                warnings.warn(
+                    "Found an empty input text. Chainging to end-of-document token instead.",
+                    UserWarning
+                )
+                text = "</s>"
+            texts.append(text)
+
         if new_doc:
             pad_id = self.tokenizer.padding["pad_id"]
             pad_token = self.tokenizer.id_to_token(pad_id)
@@ -145,7 +189,7 @@ class Model(object):
         self,
         input_text: Union[str, List[str]],
         max_length=None,
-        max_new_tokens=60,
+        max_new_tokens=None,
         new_doc=False,
         top_p=None,
         top_k=None,
@@ -160,13 +204,15 @@ class Model(object):
             Input context for the model to use for its generation,
             e.g. "Attention Is All You Need [START_REF]"
 
-        max_length : int
+        max_length : int (optional)
             Maximum length in tokens of the generated text (including prompt). Only one of
-            max_length and max_new_tokens should be specified.
+            max_length and max_new_tokens should be specified. If neither is set, then
+            max_new_tokens is set to 60.
 
-        max_new_tokens : int
+        max_new_tokens : int (optional)
             Maximum length in tokens of the generated text (excluding prompt). Only one of
-            max_length and max_new_tokens should be specified.
+            max_length and max_new_tokens should be specified. If neither is set, then
+            max_new_tokens is set to 60.
 
         new_doc : bool
             If True, treats generation a new document, otherwise assumes generation could be
@@ -203,6 +249,8 @@ class Model(object):
                 options["do_sample"] = True
                 options["top_k"] = top_k
 
+        if max_new_tokens is None and max_length is None:
+            max_new_tokens = 60
         out = self.model.generate(
             input_v,
             max_length=max_length,
