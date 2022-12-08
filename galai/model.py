@@ -194,6 +194,7 @@ class Model(object):
         top_p=None,
         top_k=None,
         penalty_alpha=None,
+        num_beams=1,
     ) -> Union[str, List[str]]:
         """
         Generates text using the model
@@ -231,6 +232,9 @@ class Model(object):
             If a positive number and top_k is set, performs contrastive search decoding with top_k
             candidates reranking. Default is None.
 
+        num_beams : int, default 1
+            Number of beams to use in beam search.
+
         Returns
         ----------
         str or list[str] - generated texts from the model. Returns a single str if input_text is
@@ -257,6 +261,7 @@ class Model(object):
             max_new_tokens=max_new_tokens,
             return_dict_in_generate=True,
             output_hidden_states=False,
+            num_beams=num_beams,
             **options
         )
 
@@ -273,7 +278,8 @@ class Model(object):
         max_length=None,
         max_new_tokens=60,
         new_doc=False,
-        top_p=None
+        top_p=None,
+        num_beams=1,
     ) -> Union[str, List[str]]:
         """
         Generates reference.
@@ -301,6 +307,9 @@ class Model(object):
         top_p : float or None
             If None, uses greedy decoding. If a number, e.g. 0.7, performs top p sampling.
             Default is None.
+
+        num_beams : int, default 1
+            Number of beams to use in beam search.
 
         Returns
         ----------
@@ -341,6 +350,7 @@ class Model(object):
                 output_hidden_states=False,
                 top_p=top_p,
                 do_sample=True,
+                num_beams=num_beams,
                 stopping_criteria=stopping_criteria,
             )
         else:
@@ -348,6 +358,7 @@ class Model(object):
                 input_v,
                 max_length=max_length,
                 max_new_tokens=max_new_tokens,
+                num_beams=num_beams,
                 return_dict_in_generate=True,
                 output_hidden_states=False,
                 stopping_criteria=stopping_criteria,
