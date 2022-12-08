@@ -195,7 +195,8 @@ class Model(object):
         top_k=None,
         penalty_alpha=None,
         num_beams=1,
-    ) -> Union[str, List[str]]:
+        num_return_sequences=1,
+    ) -> Union[str, List[str], List[List[str]]]:
         """
         Generates text using the model
 
@@ -235,12 +236,19 @@ class Model(object):
         num_beams : int, default 1
             Number of beams to use in beam search.
 
+        num_return_sequences : int, default 1
+            Number of generations to return for each prompt.
+
         Returns
         ----------
-        str or list[str] - generated texts from the model. Returns a single str if input_text is
-            str. Otherwise, returns a list.
+        str, list[str] or list[list[str]] - generated texts from the model. If input_text is a
+            singe string, then the output is str if num_return_sequences == 1 or a list of
+            strings if num_return_sequences > 1. If input_text is an iterable of strings, then the
+            output is either a list of strings if num_return_sequences == 1 or a list of lists of
+            strings, in which each inner list contains the generations for a given input prompt.
         """
-        input_v = self._tokenize([input_text] if isinstance(input_text, str) else input_text, new_doc)
+        texts = [input_text] if isinstance(input_text, str) else input_text
+        input_v = self._tokenize(texts, new_doc)
         options = {}
         if penalty_alpha is not None:
             options["penalty_alpha"] = penalty_alpha
@@ -262,6 +270,7 @@ class Model(object):
             return_dict_in_generate=True,
             output_hidden_states=False,
             num_beams=num_beams,
+            num_return_sequences=num_return_sequences,
             **options
         )
 
@@ -269,7 +278,16 @@ class Model(object):
         decoded = self.tokenizer.decode_batch(out['sequences'].tolist(), skip_special_tokens=False)
         # so we manually remove </s> and <pad>
         decoded = [text.replace("</s>", "").replace("<pad>", "") for text in decoded]
-        return decoded[0] if isinstance(input_text, str) else decoded
+
+        if num_return_sequences == 1:
+            return decoded[0] if isinstance(input_text, str) else decoded
+        if isinstance(input_text, str):
+            return decoded
+        else:
+            return [
+                decoded[num_return_sequences * i:num_return_sequences * (i+1)]
+                for i in range(len(texts))
+            ]
 
     @torch.inference_mode()
     def generate_reference(
@@ -279,8 +297,9 @@ class Model(object):
         max_new_tokens=60,
         new_doc=False,
         top_p=None,
-        num_beams=1,
-    ) -> Union[str, List[str]]:
+        suggestions=1,
+        diversity_penalty=0.0,
+    ) -> Union[str, List[str], List[List[str]]]:
         """
         Generates reference.
 
@@ -308,13 +327,19 @@ class Model(object):
             If None, uses greedy decoding. If a number, e.g. 0.7, performs top p sampling.
             Default is None.
 
-        num_beams : int, default 1
-            Number of beams to use in beam search.
+        suggestions : int, default 1
+            Number of suggestions to return for each input prompt. Uses beam search to return more
+            suggestions. Ignored when sampling.
+
+        diversity_penalty : float, default 0.0, ignored if sampling or suggestions == 1
 
         Returns
         ----------
-        str or list[str] - generated texts from the model. Returns a single str if input_text is
-            str. Otherwise, returns a list.
+        str, list[str] or list[list[str]] - generated reference suggestions from the model. If
+            input_text is a singe string, then the output is str if suggestions == 1 or a list of
+            strings if suggestions > 1. If input_text is an iterable of strings, then the output is
+            either a list of strings if suggestions == 1 or a list of lists of strings, in which
+            each inner list contains the suggestions for a given input prompt.
         """
         texts = [input_text] if isinstance(input_text, str) else input_text
         # append [START_REF] token if missing
@@ -340,7 +365,6 @@ class Model(object):
             end_ref_id=self.tokenizer.token_to_id("[END_REF]"),
         )
         stopping_criteria = StoppingCriteriaList([finished_reference_criteria])
-
         if top_p is not None:
             out = self.model.generate(
                 input_v,
@@ -350,7 +374,7 @@ class Model(object):
                 output_hidden_states=False,
                 top_p=top_p,
                 do_sample=True,
-                num_beams=num_beams,
+                num_return_sequences=suggestions,
                 stopping_criteria=stopping_criteria,
             )
         else:
@@ -358,7 +382,10 @@ class Model(object):
                 input_v,
                 max_length=max_length,
                 max_new_tokens=max_new_tokens,
-                num_beams=num_beams,
+                num_beams=suggestions,
+                num_return_sequences=suggestions,
+                num_beam_groups=suggestions if diversity_penalty > 0.0 else 1,
+                diversity_penalty=diversity_penalty,
                 return_dict_in_generate=True,
                 output_hidden_states=False,
                 stopping_criteria=stopping_criteria,
@@ -380,4 +407,13 @@ class Model(object):
                 "At least one of the generated references may be incomplete. Consider increasing max_length or max_new_tokens.",
                 UserWarning
             )
-        return references[0] if isinstance(input_text, str) else references
+
+        if suggestions == 1:
+            return references[0] if isinstance(input_text, str) else references
+        if isinstance(input_text, str):
+            return references
+        else:
+            return [
+                references[suggestions * i:suggestions * (i+1)]
+                for i in range(len(texts))
+            ]
