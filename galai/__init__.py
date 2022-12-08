@@ -1,6 +1,7 @@
 from typing import Union
 
 from galai.model import Model
+from galai.utils import ModelInfo
 import torch
 import warnings
 
@@ -98,6 +99,14 @@ def load_model(
                 UserWarning
             )
             num_gpus = available
+    if num_gpus > 1 and parallelize:
+        mi = ModelInfo.by_name(name)
+        if mi.num_heads % num_gpus != 0:
+            raise ValueError(
+                f"With parallelize=True the number of model heads ({mi.num_heads} for '{name}' " +
+                "model) must be divisible by the num_gpus. Adapt the number of GPUs, try a " +
+                "different model or set parallelize=False"
+            )
     if num_gpus <= 1 and parallelize:
         warnings.warn(
             "parallelize=True requires at least two GPUs. Setting it back to False.",
