@@ -294,7 +294,7 @@ class Model(object):
         self,
         input_text: Union[str, List[str]],
         max_length=None,
-        max_new_tokens=60,
+        max_new_tokens=None,
         new_doc=False,
         top_p=None,
         suggestions=1,
@@ -309,13 +309,14 @@ class Model(object):
             Input context for the model to use for its generation,
             e.g. "Attention Is All You Need [START_REF]"
 
-        max_length : int
+        max_length : int (optional)
             Maximum length in tokens of the generated text (including prompt). Only one of
             max_length and max_new_tokens should be specified.
 
-        max_new_tokens : int
+        max_new_tokens : int (optional)
             Maximum length in tokens of the generated text (excluding prompt). Only one of
-            max_length and max_new_tokens should be specified.
+            max_length and max_new_tokens should be specified. If neither is set, then
+            max_new_tokens is set to 60.
 
         new_doc : bool
             If True, treats generation a new document, otherwise assumes generation could be
@@ -364,6 +365,10 @@ class Model(object):
             prompt_length=prompt_length,
             end_ref_id=self.tokenizer.token_to_id("[END_REF]"),
         )
+
+        if max_new_tokens is None and max_length is None:
+            max_new_tokens = 60
+
         stopping_criteria = StoppingCriteriaList([finished_reference_criteria])
         if top_p is not None:
             out = self.model.generate(
