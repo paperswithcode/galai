@@ -113,7 +113,7 @@ class ModelInfo:
         return _MODEL_INFO_BY_NAME[name]
 
     @staticmethod
-    def all() -> list["ModelInfo"]:
+    def all() -> List["ModelInfo"]:
         return _MODEL_INFO
 
 
