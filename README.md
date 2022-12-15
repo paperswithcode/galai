@@ -51,6 +51,8 @@ model.generate("Scaled dot product attention:\n\n\\[")
 # Scaled dot product attention:\n\n\\[ \\displaystyle\\text{Attention}(Q,K,V)=\\text{softmax}(\\frac{QK^{T}}{\\sqrt{d_{k}}}%\n)V \\]
 ```
 
+Read the full introduction to Galactica models as a [PDF](https://github.com/paperswithcode/galai/blob/main/notebooks/Introduction%20to%20Galactica%20Models.pdf) or a [jupyter notebook](https://github.com/paperswithcode/galai/blob/main/notebooks/Introduction%20to%20Galactica%20Models.ipynb).
+
 You can also find all the model weights with their model cards and inference widget in the [Hugging Face Hub](https://huggingface.co/models?other=galactica). All the models can be used out of the box with the `transformers` library.
 
 ```bash
