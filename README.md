@@ -56,6 +56,8 @@ The `load_model()` function accepts the following parameters:
 - `dtype: str=None` that accepts `float16` (or when the name is set to `huge`) and `float32`
 - `num_gpus: int=None` that accepts the total number of GPUs to be used (by default this is `8`)
 
+Read the full introduction to Galactica models as a [PDF](https://github.com/paperswithcode/galai/blob/main/notebooks/Introduction%20to%20Galactica%20Models.pdf) or a [jupyter notebook](https://github.com/paperswithcode/galai/blob/main/notebooks/Introduction%20to%20Galactica%20Models.ipynb).
+
 You can also find all the model weights with their model cards and inference widget in the [Hugging Face Hub](https://huggingface.co/models?other=galactica). All the models can be used out of the box with the `transformers` library.
 
 ```bash
