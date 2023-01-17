@@ -4,5 +4,5 @@ tokenizers
 parallelformers==1.2.7
 accelerate
 markdown>=3.4
-bleach~=5.0.1
+bleach[css]~=5.0.1
 psutil

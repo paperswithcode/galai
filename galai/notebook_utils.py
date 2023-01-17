@@ -1,6 +1,7 @@
 from IPython.display import HTML
 import markdown as md
 import bleach
+from bleach.css_sanitizer import CSSSanitizer
 
 
 __all__ = ["display_markdown", "display_latex"]
@@ -58,7 +59,9 @@ def clean_html(value, tags=None, attributes=None, css_sanitizer=None):
     if attributes is None:
         attributes = ALLOWED_ATTRIBUTES
     if css_sanitizer is None:
-        css_sanitizer = ALLOWED_CSS_PROPERTIES
+        css_sanitizer = CSSSanitizer(allowed_css_properties=ALLOWED_CSS_PROPERTIES)
+    elif isinstance(css_sanitizer, list):
+        css_sanitizer = CSSSanitizer(allowed_css_properties=css_sanitizer)
 
     cleaned = bleach.clean(
         value,
