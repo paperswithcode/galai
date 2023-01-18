@@ -4,7 +4,7 @@ from galai.model import Model
 from galai.utils import ModelInfo
 import torch
 import warnings
-
+from pathlib import Path
 
 HF_MAPPING = {
     "mini": ("facebook/galactica-125m", torch.float32),
@@ -54,12 +54,17 @@ def load_model(
     Model - model object
     """
 
-    if name not in HF_MAPPING:
+    if name in HF_MAPPING:
+        hf_model, default_dtype = HF_MAPPING[name]
+
+    elif Path(name).exists():
+        hf_model = name
+        default_dtype = torch.float32
+    else:
         raise ValueError(
             "Invalid model name. Must be one of 'mini', 'base', 'standard', 'large', 'huge'."
         )
 
-    hf_model, default_dtype = HF_MAPPING[name]
     if dtype is None:
         dtype = default_dtype
 
