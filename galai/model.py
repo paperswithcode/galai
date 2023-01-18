@@ -134,7 +134,7 @@ class Model(object):
             master_port=self._master_port,
         )
 
-    def _set_tokenizer(self, tokenizer_path: str):
+    def _set_tokenizer(self, tokenizer_path: str, from_file=False):
         """
         Configures the tokenizer for the model
 
@@ -143,7 +143,10 @@ class Model(object):
         tokenizer_path : str
             Path for the tokenizer (str)
         """
-        self.tokenizer = Tokenizer.from_pretrained(tokenizer_path)
+        if from_file:
+            self.tokenizer = Tokenizer.from_file(tokenizer_path)
+        else:
+            self.tokenizer = Tokenizer.from_pretrained(tokenizer_path)
         self.tokenizer.enable_padding(direction="left", pad_id=1, pad_type_id=0, pad_token="[PAD]")
         self.tokenizer.enable_truncation(max_length=2020, direction="left")
 
