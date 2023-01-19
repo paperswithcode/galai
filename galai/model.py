@@ -129,9 +129,15 @@ class Model(object):
 
         self._master_port = 13000 + (id(self.model) % 32749)
 
+        custom_policies = None
+        if self.model.config.model_type == "opt" and not self.model.config.enable_bias:
+            from galai.parallel_policy import OPTDecoderLayerPolicyNoBias
+            custom_policies = [OPTDecoderLayerPolicyNoBias]
+
         parallelize(
             self.model, num_gpus=self.num_gpus, fp16=self.dtype == torch.float16,
             master_port=self._master_port,
+            custom_policies=custom_policies,
         )
 
     def _set_tokenizer(self, tokenizer_path: str):
