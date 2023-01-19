@@ -56,18 +56,15 @@ def load_model(
 
     if name in HF_MAPPING:
         hf_model, default_dtype = HF_MAPPING[name]
-        tokenizer_path = hf_model
-        from_file=False
-
+        galai_model = True
     elif Path(name).exists():
         hf_model = name
         default_dtype = torch.float32
-        # tokenizer_path = "facebook/galactica-1.3b"
-        tokenizer_path = name + "/tokenizer.json"
-        from_file=True
+        galai_model = False
     else:
         raise ValueError(
-            "Invalid model name. Must be one of 'mini', 'base', 'standard', 'large', 'huge'."
+            "Invalid model name. Must be one of 'mini', 'base', 'standard', 'large', 'huge', " +
+            "a path to a local checkpoint dir, or a model name available on HuggingFace hub."
         )
 
     if dtype is None:
@@ -109,7 +106,7 @@ def load_model(
                 UserWarning
             )
             num_gpus = available
-    if num_gpus > 1 and parallelize:
+    if num_gpus > 1 and parallelize and galai_model:
         mi = ModelInfo.by_name(name)
         if mi.num_heads % num_gpus != 0:
             raise ValueError(
@@ -130,7 +127,7 @@ def load_model(
         num_gpus=num_gpus,
         tensor_parallel=parallelize,
     )
-    model._set_tokenizer(tokenizer_path, from_file=from_file)
+    model._set_tokenizer(hf_model)
     model._load_checkpoint(checkpoint_path=hf_model)
 
     return model
