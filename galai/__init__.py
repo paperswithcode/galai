@@ -4,7 +4,7 @@ from galai.model import Model
 from galai.utils import ModelInfo
 import torch
 import warnings
-
+from pathlib import Path
 
 HF_MAPPING = {
     "mini": ("facebook/galactica-125m", torch.float32),
@@ -54,12 +54,19 @@ def load_model(
     Model - model object
     """
 
-    if name not in HF_MAPPING:
+    if name in HF_MAPPING:
+        hf_model, default_dtype = HF_MAPPING[name]
+        galai_model = True
+    elif Path(name).exists():
+        hf_model = name
+        default_dtype = torch.float32
+        galai_model = False
+    else:
         raise ValueError(
-            "Invalid model name. Must be one of 'mini', 'base', 'standard', 'large', 'huge'."
+            "Invalid model name. Must be one of 'mini', 'base', 'standard', 'large', 'huge', " +
+            "a path to a local checkpoint dir, or a model name available on HuggingFace hub."
         )
 
-    hf_model, default_dtype = HF_MAPPING[name]
     if dtype is None:
         dtype = default_dtype
 
@@ -99,7 +106,7 @@ def load_model(
                 UserWarning
             )
             num_gpus = available
-    if num_gpus > 1 and parallelize:
+    if num_gpus > 1 and parallelize and galai_model:
         mi = ModelInfo.by_name(name)
         if mi.num_heads % num_gpus != 0:
             raise ValueError(

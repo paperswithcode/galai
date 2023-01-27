@@ -3,8 +3,7 @@ from typing import Union, List
 
 import torch
 
-from tokenizers import Tokenizer
-from transformers import OPTForCausalLM, StoppingCriteriaList, StoppingCriteria
+from transformers import AutoTokenizer, OPTForCausalLM, StoppingCriteriaList, StoppingCriteria
 from parallelformers import parallelize
 import psutil
 
@@ -80,6 +79,7 @@ class Model(object):
         self.is_loaded = False
         self.num_gpus = num_gpus
         self.tensor_parallel = tensor_parallel
+        self.max_input_length = 2020
         self._master_port = None
 
     def _load_checkpoint(self, checkpoint_path: str):
@@ -129,9 +129,15 @@ class Model(object):
 
         self._master_port = 13000 + (id(self.model) % 32749)
 
+        custom_policies = None
+        if self.model.config.model_type == "opt" and not self.model.config.enable_bias:
+            from galai.parallel_policy import OPTDecoderLayerPolicyNoBias
+            custom_policies = [OPTDecoderLayerPolicyNoBias]
+
         parallelize(
             self.model, num_gpus=self.num_gpus, fp16=self.dtype == torch.float16,
             master_port=self._master_port,
+            custom_policies=custom_policies,
         )
 
     def _set_tokenizer(self, tokenizer_path: str):
@@ -143,9 +149,27 @@ class Model(object):
         tokenizer_path : str
             Path for the tokenizer (str)
         """
-        self.tokenizer = Tokenizer.from_pretrained(tokenizer_path)
-        self.tokenizer.enable_padding(direction="left", pad_id=1, pad_type_id=0, pad_token="[PAD]")
-        self.tokenizer.enable_truncation(max_length=2020, direction="left")
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+
+        # setup padding
+        tokenizer.pad_token_id = 1
+        tokenizer.pad_token = "<pad>"
+        tokenizer.padding_side = "left"
+
+        # setup truncation
+        tokenizer.truncation_side = "left"
+
+        # setup special tokens
+        tokenizer.bos_token_id = 0
+        tokenizer.bos_token = "<s>"
+
+        tokenizer.eos_token_id = 2
+        tokenizer.eos_token = "</s>"
+
+        tokenizer.unk_token = "<unk>"
+        tokenizer.unk_token_id = 3
+
+        self.tokenizer = tokenizer
 
     def _tokenize(self, input_text: List[str], new_doc: bool) -> torch.LongTensor:
         """
@@ -164,24 +188,27 @@ class Model(object):
             text = escape_custom_split_sequence(text)
             if not text:
                 warnings.warn(
-                    "Found an empty input text. Chainging to end-of-document token instead.",
+                    "Found an empty input text. Changing to end-of-document token instead.",
                     UserWarning
                 )
-                text = "</s>"
+                text = self.tokenizer.eos_token
             texts.append(text)
 
         if new_doc:
-            pad_id = self.tokenizer.padding["pad_id"]
-            pad_token = self.tokenizer.id_to_token(pad_id)
+            pad_token = self.tokenizer.pad_token
             texts = [pad_token + t for t in texts]
 
-        list_encoded = self.tokenizer.encode_batch(texts)
-        context_tokens = [encoded.ids for encoded in list_encoded]
+        encoded = self.tokenizer(
+            texts,
+            padding="longest",
+            max_length=self.max_input_length,
+            truncation=True
+        )
+        context_tokens = encoded["input_ids"]
         input_v = torch.LongTensor(context_tokens).to(self.model.device)
 
         if new_doc:
-            eos_id = self.tokenizer.token_to_id("</s>")
-            input_v[input_v[:, 0] == pad_id, 0] = eos_id
+            input_v[input_v[:, 0] == self.tokenizer.pad_token_id, 0] = self.tokenizer.eos_token_id
         return input_v
 
     @torch.inference_mode()
@@ -275,9 +302,12 @@ class Model(object):
         )
 
         # we keep special tokens such as [START_REF] or <work>
-        decoded = self.tokenizer.decode_batch(out['sequences'].tolist(), skip_special_tokens=False)
+        decoded = self.tokenizer.batch_decode(out['sequences'], skip_special_tokens=False)
         # so we manually remove </s> and <pad>
-        decoded = [text.replace("</s>", "").replace("<pad>", "") for text in decoded]
+        decoded = [
+            text.replace(self.tokenizer.eos_token, "").replace(self.tokenizer.pad_token, "")
+            for text in decoded
+        ]
 
         if num_return_sequences == 1:
             return decoded[0] if isinstance(input_text, str) else decoded
@@ -363,7 +393,7 @@ class Model(object):
         prompt_length = input_v.shape[1]
         finished_reference_criteria = FinishedReferenceCriteria(
             prompt_length=prompt_length,
-            end_ref_id=self.tokenizer.token_to_id("[END_REF]"),
+            end_ref_id=self.tokenizer.convert_tokens_to_ids("[END_REF]"),
         )
 
         if max_new_tokens is None and max_length is None:
@@ -396,8 +426,8 @@ class Model(object):
                 stopping_criteria=stopping_criteria,
             )
         # cut-off the prompts
-        generated_tokens = out["sequences"][:, prompt_length:].tolist()
-        decoded = self.tokenizer.decode_batch(generated_tokens, skip_special_tokens=False)
+        generated_tokens = out["sequences"][:, prompt_length:]
+        decoded = self.tokenizer.batch_decode(generated_tokens, skip_special_tokens=False)
         references = []
         unfinished_generation = False
         for text in decoded:
