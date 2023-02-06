@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 PACKAGE_NAME = 'galai'
-VERSION = "1.1.3"
+VERSION = "1.1.4"
 DESCRIPTION = "API for the GALACTICA model"
 KEYWORDS = "Scientific Intelligence"
 URL = 'https://github.com/paperswithcode/galai'
