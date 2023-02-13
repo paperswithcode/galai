@@ -223,6 +223,7 @@ class Model(object):
         penalty_alpha=None,
         num_beams=1,
         num_return_sequences=1,
+        return_full_text=True,
     ) -> Union[str, List[str], List[List[str]]]:
         """
         Generates text using the model
@@ -301,8 +302,11 @@ class Model(object):
             **options
         )
 
+        out_tokens = out['sequences']
+        if not return_full_text:
+            out_tokens = out_tokens[:, input_v.shape[1]:]
         # we keep special tokens such as [START_REF] or <work>
-        decoded = self.tokenizer.batch_decode(out['sequences'], skip_special_tokens=False)
+        decoded = self.tokenizer.batch_decode(out_tokens, skip_special_tokens=False)
         # so we manually remove </s> and <pad>
         decoded = [
             text.replace(self.tokenizer.eos_token, "").replace(self.tokenizer.pad_token, "")
