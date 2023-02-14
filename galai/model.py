@@ -306,7 +306,11 @@ class Model(object):
         if not return_full_text:
             out_tokens = out_tokens[:, input_v.shape[1]:]
         # we keep special tokens such as [START_REF] or <work>
-        decoded = self.tokenizer.batch_decode(out_tokens, skip_special_tokens=False)
+        decoded = self.tokenizer.batch_decode(
+            out_tokens,
+            skip_special_tokens=False,
+            clean_up_tokenization_spaces=False,
+        )
         # so we manually remove </s> and <pad>
         decoded = [
             text.replace(self.tokenizer.eos_token, "").replace(self.tokenizer.pad_token, "")
@@ -431,7 +435,11 @@ class Model(object):
             )
         # cut-off the prompts
         generated_tokens = out["sequences"][:, prompt_length:]
-        decoded = self.tokenizer.batch_decode(generated_tokens, skip_special_tokens=False)
+        decoded = self.tokenizer.batch_decode(
+            generated_tokens,
+            skip_special_tokens=False,
+            clean_up_tokenization_spaces=False,
+        )
         references = []
         unfinished_generation = False
         for text in decoded:
