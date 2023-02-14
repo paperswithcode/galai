@@ -71,7 +71,7 @@ def load_model(
         dtype = default_dtype
 
     if isinstance(dtype, str):
-        dtype = getattr(torch, "float16", None)
+        dtype = getattr(torch, dtype, None)
     if dtype not in (torch.float16, torch.float32, torch.bfloat16):
         raise ValueError(
             f"Unsupported dtype: {dtype}"
