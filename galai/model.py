@@ -82,7 +82,7 @@ class Model(object):
         self.max_input_length = 2020
         self._master_port = None
 
-    def _load_checkpoint(self, checkpoint_path: str):
+    def _load_checkpoint(self, checkpoint_path: str, cache_dir: str):
         """
         Loads the checkpoint for the model
 
@@ -108,6 +108,7 @@ class Model(object):
 
         self.model = OPTForCausalLM.from_pretrained(
             checkpoint_path,
+            cache_dir=cache_dir,
             torch_dtype=self.dtype,
             low_cpu_mem_usage=True,
             device_map=device_map,

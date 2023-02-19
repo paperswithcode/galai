@@ -17,6 +17,7 @@ HF_MAPPING = {
 
 def load_model(
     name: str,
+    cache_dir: str,
     dtype: Union[str, torch.dtype] = None,
     num_gpus: int = None,
     parallelize: bool = False
@@ -128,6 +129,6 @@ def load_model(
         tensor_parallel=parallelize,
     )
     model._set_tokenizer(hf_model)
-    model._load_checkpoint(checkpoint_path=hf_model)
+    model._load_checkpoint(checkpoint_path=hf_model, cache_dir=cache_dir)
 
     return model
