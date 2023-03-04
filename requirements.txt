@@ -1,8 +1,11 @@
 torch>=1.12
+accelerate<=0.15.0· PyPI
+PyPI
+https://pypi.org › project › transformers
+Transformers provi
 transformers==4.25.1
 tokenizers
 parallelformers==1.2.7
-accelerate
 markdown>=3.4
 bleach[css]~=5.0.1
 psutil
