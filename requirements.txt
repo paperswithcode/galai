@@ -1,6 +1,5 @@
 torch>=1.12
 accelerate<=0.15.0
-Transformers provi
 transformers==4.25.1
 tokenizers
 parallelformers==1.2.7
